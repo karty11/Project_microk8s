@@ -33,12 +33,12 @@ jobs:
         with:
           version: v3.14.0
 
-      - name: Setup kubeconfig (if provided as secret)
-        if: ${{ secrets.KUBECONFIG_DATA != '' }}
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
-          chmod 600 ~/.kube/config
+      # - name: Setup kubeconfig (if provided as secret)
+      #   if: ${{ secrets.KUBECONFIG_DATA != '' }}
+      #   run: |
+      #     mkdir -p ~/.kube
+      #     echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
+      #     chmod 600 ~/.kube/config
 
   #     - name: Ensure required namespaces exist
   #       run: |
