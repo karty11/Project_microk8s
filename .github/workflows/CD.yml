@@ -106,6 +106,10 @@ jobs:
          echo "==== File Content ===="
          cat k8s/external-secrets/secretstore-aws.yaml | head -n 10
          echo "======================"
+     
+      - name: Install all ESO CRDs
+        run: |
+         kubectl apply -f https://raw.githubusercontent.com/external-secrets/external-secrets/main/config/crds/bases   
     
       - name: Check cluster and CRDs
         run: |
