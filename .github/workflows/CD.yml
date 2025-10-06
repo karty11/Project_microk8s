@@ -151,7 +151,7 @@ jobs:
         run: kubectl apply -f k8s/external-secrets/secretstore-aws.yaml -n ${EXTERNAL_SECRETS_NAMESPACE}
 
       - name: Apply ExternalSecret
-        run: kubectl apply -f k8s/external-secrets/externalsecret-bankapp.yaml -n ${KUBE_NAMESPACE}
+        run: kubectl apply -f k8s/external-secrets/external-secret-bankapp.yaml -n ${KUBE_NAMESPACE}
 
       - name: Wait for bankapp-db-externalsecret
         run: |
