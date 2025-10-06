@@ -16,7 +16,7 @@ env:
 jobs:
   prepare_kube:
     name: Prepare kubeconfig & namespaces
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
 
   install_argocd:
     name: Install Argo CD
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     needs: prepare_kube
     steps:
       - name: Checkout
@@ -75,7 +75,7 @@ jobs:
 
   install_and_configure_eso:
     name: Install External Secrets Operator and configure AWS creds
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     needs: install_argocd
     steps:
       - name: Checkout
@@ -139,7 +139,7 @@ jobs:
 
   apply_argocd_apps:
     name: Apply ArgoCD Application manifests (mysql & bankapp)
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     needs: install_and_configure_eso
     steps:
       - name: Checkout
@@ -177,7 +177,7 @@ jobs:
 
   smoke_tests:
     name: Smoke tests & final checks
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     needs: apply_argocd_apps
     steps:
       - name: Get pods
