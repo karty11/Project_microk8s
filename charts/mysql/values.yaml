@@ -1,1 +1,5 @@
-
+image: mysql:8.0
+storage: 1Gi
+service:
+  type: ClusterIP
+  port: 3306
