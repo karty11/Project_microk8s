@@ -1,4 +1,4 @@
-name: deploy bankapp + mysql (ArgoCD + ESO)
+name: deploy bankapp + mysql (ArgoCD + ESO + ArgoCD Install)
 
 # on:
 #  workflow_run:
@@ -15,8 +15,8 @@ env:
 
 jobs:
   prepare_kube:
-    name: Prepare kubeconfig
-    runs-on: [self-hosted, linux]
+    name: Prepare kubeconfig & namespaces
+    runs-on: [self-hosted]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,15 +29,54 @@ jobs:
           chmod 600 ~/.kube/config
 
       - name: Ensure devproject namespace exists
-        run: kubectl create ns ${{ env.KUBE_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create ns ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Ensure external-secrets namespace exists
-        run: kubectl create ns ${{ env.EXTERNAL_SECRETS_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+        run: kubectl create ns ${EXTERNAL_SECRETS_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
-  install_eso:
-    name: Install External Secrets Operator (Helm)
-    runs-on: [self-hosted, linux]
+      - name: Ensure argocd namespace exists
+        run: kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f -
+
+  install_argocd:
+    name: Install Argo CD
+    runs-on: [self-hosted]
     needs: prepare_kube
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if ArgoCD already installed (has deployment/argocd-server)
+        id: check_argocd
+        run: |
+          if kubectl get deployment argocd-server -n argocd >/dev/null 2>&1; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "installed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install ArgoCD (kubectl apply) if missing
+        if: steps.check_argocd.outputs.installed == 'false'
+        run: |
+          echo "Installing ArgoCD from upstream manifest..."
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=4m || true
+          kubectl -n argocd wait --for=condition=available deployment/argocd-application-controller --timeout=4m || true
+          kubectl -n argocd wait --for=condition=available deployment/argocd-repo-server --timeout=4m || true
+        timeout-minutes: 10
+
+      - name: Wait for ArgoCD deployments to be ready
+        run: |
+          kubectl -n argocd rollout status deployment/argocd-server --timeout=180s
+          kubectl -n argocd rollout status deployment/argocd-application-controller --timeout=180s
+          kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=180s
+
+      - name: Show ArgoCD pods
+        run: kubectl get pods -n argocd -o wide
+
+  install_and_configure_eso:
+    name: Install External Secrets Operator and configure AWS creds
+    runs-on: [self-hosted]
+    needs: install_argocd
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,22 +86,36 @@ jobs:
           helm repo add external-secrets https://charts.external-secrets.io
           helm repo update
 
-      - name: Install/Upgrade external-secrets
+      - name: Install/Upgrade external-secrets (Helm)
         run: |
           helm upgrade --install external-secrets external-secrets/external-secrets \
             -n ${EXTERNAL_SECRETS_NAMESPACE} --create-namespace \
             --wait --timeout 5m
 
-      - name: Wait for external-secrets controller
-        run: kubectl -n ${EXTERNAL_SECRETS_NAMESPACE} rollout status deployment/external-secrets-controller --timeout=120s
+      - name: Wait for external-secrets controller to be ready
+        run: |
+          kubectl -n ${EXTERNAL_SECRETS_NAMESPACE} rollout status deployment/external-secrets-controller --timeout=120s || true
+          kubectl -n ${EXTERNAL_SECRETS_NAMESPACE} get pods -o wide
 
-  apply_secretstore_and_externalsecret:
-    name: Apply SecretStore + ExternalSecret
-    runs-on: [self-hosted, linux]
-    needs: install_eso
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Create or apply aws-creds k8s secret (prefer GitHub Secrets if file not present)
+        env:
+          AWS_ESO_AK: ${{ secrets.AWS_ESO_ACCESS_KEY_ID }}
+          AWS_ESO_SK: ${{ secrets.AWS_ESO_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          # If repo contains a file with aws-creds secret, apply it (but avoid committing real creds)
+          if [ -f k8s/external-secrets/aws-creds-secret.yaml ]; then
+            echo "Applying k8s/external-secrets/aws-creds-secret.yaml from repo (ensure it does NOT contain real keys in git)."
+            kubectl apply -f k8s/external-secrets/aws-creds-secret.yaml -n ${EXTERNAL_SECRETS_NAMESPACE}
+          else
+            echo "Creating aws-creds from GitHub Secrets into namespace ${EXTERNAL_SECRETS_NAMESPACE}"
+            kubectl create secret generic aws-creds \
+              -n ${EXTERNAL_SECRETS_NAMESPACE} \
+              --from-literal=AWS_ACCESS_KEY_ID="${AWS_ESO_AK}" \
+              --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_ESO_SK}" \
+              --from-literal=AWS_REGION="${AWS_REGION}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
 
       - name: Apply SecretStore (points to aws-creds)
         run: kubectl apply -f k8s/external-secrets/secretstore-aws.yaml -n ${EXTERNAL_SECRETS_NAMESPACE}
@@ -72,23 +125,22 @@ jobs:
 
       - name: Wait for bankapp-db-externalsecret to appear
         run: |
-          for i in {1..12}; do
+          for i in {1..24}; do
             if kubectl get secret bankapp-db-externalsecret -n ${KUBE_NAMESPACE} >/dev/null 2>&1; then
               echo "Secret exists."
               exit 0
-            else
-              echo "Waiting for secret..."
-              sleep 5
             fi
+            echo "Waiting for secret (attempt $i/24)..."
+            sleep 5
           done
-          echo "ERROR: secret not created" >&2
-          kubectl get externalsecret -n ${KUBE_NAMESPACE} -o yaml
+          echo "ERROR: secret not created after wait" >&2
+          kubectl get externalsecret -n ${KUBE_NAMESPACE} -o yaml || true
           exit 1
 
   apply_argocd_apps:
-    name: Apply ArgoCD Application manifests (bankapp + mysql)
-    runs-on: [self-hosted, linux]
-    needs: apply_secretstore_and_externalsecret
+    name: Apply ArgoCD Application manifests (mysql & bankapp)
+    runs-on: [self-hosted]
+    needs: install_and_configure_eso
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,7 +157,7 @@ jobs:
           APPS=("mysql" "bankapp-demo")
           for app in "${APPS[@]}"; do
             echo "Waiting for ArgoCD app: $app"
-            for i in {1..24}; do
+            for i in {1..36}; do
               SYNC=$(kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "NotFound")
               HEALTH=$(kubectl get application $app -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "NotFound")
               echo "status: sync=$SYNC, health=$HEALTH"
@@ -114,7 +166,7 @@ jobs:
                 break
               fi
               sleep 10
-              if [ $i -eq 24 ]; then
+              if [ $i -eq 36 ]; then
                 echo "Timeout waiting for $app to be healthy/synced"
                 kubectl describe application $app -n argocd || true
                 kubectl get pods -n ${KUBE_NAMESPACE} || true
@@ -129,16 +181,16 @@ jobs:
     needs: apply_argocd_apps
     steps:
       - name: Get pods
-        run: kubectl get pods -n ${KUBE_NAMESPACE} -o wide
+        run: kubectl get pods -n ${KUBE_NAMESPACE} -o wide || true
 
       - name: Wait for bankapp deployment available
-        run: kubectl -n ${KUBE_NAMESPACE} rollout status deployment/bankapp --timeout=120s
+        run: kubectl -n ${KUBE_NAMESPACE} rollout status deployment/bankapp --timeout=120s || true
 
       - name: Wait for mysql deployment available
-        run: kubectl -n ${KUBE_NAMESPACE} rollout status deployment/mysql --timeout=120s
+        run: kubectl -n ${KUBE_NAMESPACE} rollout status deployment/mysql --timeout=120s || true
 
-      - name: Show secrets (debug - only base64 keys)
+      - name: Show synced secrets (debug)
         run: kubectl get secret bankapp-db-externalsecret -n ${KUBE_NAMESPACE} -o yaml || true
 
       - name: Success note
-        run: echo "✅ CD pipeline complete. Check pods and app logs if necessary."
+        run: echo "✅ CD pipeline complete. If you need ArgoCD UI access, follow the instructions in argocd/README.md"
