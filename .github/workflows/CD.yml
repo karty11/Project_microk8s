@@ -17,8 +17,11 @@ jobs:
           echo "curl github raw head:"
           curl -I https://raw.githubusercontent.com/ || true
 
-      - name: Checkout
+      - name: Checkout fresh repo
         uses: actions/checkout@v4
+        with:
+         fetch-depth: 0
+         clean: true
 
       - name: Install Helm manually (macOS)
         run: brew install helm
@@ -88,6 +91,26 @@ jobs:
         run: |
           helm repo add external-secrets https://charts.external-secrets.io
           helm repo update
+     
+      - name: Show kubectl version
+        run: kubectl version --client
+
+      - name: Install latest kubectl
+        run: |
+         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+         sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+  
+    
+      - name: Debug SecretStore file content
+        run: |
+         echo "==== File Content ===="
+         cat k8s/external-secrets/secretstore-aws.yaml | head -n 10
+         echo "======================"
+    
+      - name: Check cluster and CRDs
+        run: |
+         kubectl config current-context
+         kubectl get crds | grep secretstores.external-secrets.io || true
 
       - name: Install/Upgrade external-secrets
         run: |
