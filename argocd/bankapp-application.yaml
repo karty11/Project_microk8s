@@ -1,1 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bankapp-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/karty11/Project_microk8s.git'
+    targetRevision: HEAD
+    path: charts/bankapp
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: devproject
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
 
