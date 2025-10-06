@@ -40,20 +40,20 @@ jobs:
       #     echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
       #     chmod 600 ~/.kube/config
 
-  #     - name: Ensure required namespaces exist
-  #       run: |
-  #         kubectl create ns ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-  #         kubectl create ns ${EXTERNAL_SECRETS_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-  #         kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f -
+      - name: Ensure required namespaces exist
+        run: |
+          kubectl create ns ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create ns ${EXTERNAL_SECRETS_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f -
 
-  #     - name: Check if ArgoCD already installed
-  #       id: check_argocd
-  #       run: |
-  #         if kubectl get deployment argocd-server -n argocd >/dev/null 2>&1; then
-  #           echo "installed=true" >> $GITHUB_OUTPUT
-  #         else
-  #           echo "installed=false" >> $GITHUB_OUTPUT
-  #         fi
+      - name: Check if ArgoCD already installed
+        id: check_argocd
+        run: |
+          if kubectl get deployment argocd-server -n argocd >/dev/null 2>&1; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "installed=false" >> $GITHUB_OUTPUT
+          fi
 
   #     - name: Install ArgoCD if missing
   #       if: steps.check_argocd.outputs.installed == 'false'
