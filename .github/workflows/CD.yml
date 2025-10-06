@@ -20,25 +20,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-  #     - name: Install Helm manually (macOS)
-  #       run: brew install helm
+      - name: Install Helm manually (macOS)
+        run: brew install helm
 
-  #     - name: Verify Helm & Kubectl
-  #       run: |
-  #         kubectl version --client
-  #         helm version
+      - name: Verify Helm & Kubectl
+        run: |
+          kubectl version --client
+          helm version
 
-  #     - name: Set up Helm
-  #       uses: azure/setup-helm@v3
-  #       with:
-  #         version: v3.14.0
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
 
-  #     - name: Setup kubeconfig (if provided as secret)
-  #       if: ${{ secrets.KUBECONFIG_DATA != '' }}
-  #       run: |
-  #         mkdir -p ~/.kube
-  #         echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
-  #         chmod 600 ~/.kube/config
+      - name: Setup kubeconfig (if provided as secret)
+        if: ${{ secrets.KUBECONFIG_DATA != '' }}
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
 
   #     - name: Ensure required namespaces exist
   #       run: |
