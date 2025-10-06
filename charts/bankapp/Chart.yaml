@@ -1,1 +1,5 @@
-f
+apiVersion: v2
+name: bankapp
+version: 0.1.0
+description: Bank App using secrets from AWS Secrets Manager
+appVersion: "1.0"
