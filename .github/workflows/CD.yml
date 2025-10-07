@@ -115,7 +115,7 @@ jobs:
         run: |
            microk8s helm3 upgrade --install external-secrets external-secrets/external-secrets \
            -n ${EXTERNAL_SECRETS_NAMESPACE} --create-namespace \
-           --wait --timeout 5m
+           --wait --timeout 5m --skip-crds
 
 
       - name: Wait for ESO controller
