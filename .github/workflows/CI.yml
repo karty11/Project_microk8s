@@ -25,16 +25,28 @@ jobs:
     needs: compile
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Trivy and Scan
         run: |
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -y
-          sudo apt-get install -y trivy
-          trivy fs --format table -o fs-report.json .
+         sudo apt-get update -y
+         sudo apt-get install -y wget gnupg lsb-release apt-transport-https
+         # ✅ Add Aqua Security GPG key using modern method
+         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+         sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+         # ✅ Add Trivy repository using signed-by
+         echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] \
+         https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | \
+         sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+         sudo apt-get update -y
+         sudo apt-get install -y trivy
+         trivy fs --format table -o fs-report.json .
+
       - name: Gitleaks
-        run: sudo apt install gitleaks -y && gitleaks detect source . -r gitleaks-report.json -f json
+        run: |
+         sudo apt-get update -y
+         sudo apt-get install -y gitleaks
+         gitleaks detect --source . --report-path gitleaks-report.json --format json
+
 
   test:
     runs-on: self-hosted
