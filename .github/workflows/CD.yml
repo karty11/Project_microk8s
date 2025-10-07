@@ -113,9 +113,10 @@ jobs:
 
       - name: Install/Upgrade external-secrets
         run: |
-          helm upgrade --install external-secrets external-secrets/external-secrets \
-            -n ${EXTERNAL_SECRETS_NAMESPACE} --create-namespace \
-            --wait --timeout 5m
+           microk8s helm3 upgrade --install external-secrets external-secrets/external-secrets \
+           -n ${EXTERNAL_SECRETS_NAMESPACE} --create-namespace \
+           --wait --timeout 5m
+
 
       - name: Wait for ESO controller
         run: |
