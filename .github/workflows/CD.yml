@@ -22,6 +22,11 @@ jobs:
         with:
           fetch-depth: 0
           clean: true
+          
+      - name: Configure MicroK8s kubeconfig for Helm
+        run: |
+         mkdir -p ~/.kube
+         microk8s config > ~/.kube/config
 
       - name: Install Helm (Ubuntu)
         run: |
