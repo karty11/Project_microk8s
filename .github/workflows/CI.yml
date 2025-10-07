@@ -30,16 +30,15 @@ jobs:
         run: |
          sudo apt-get update -y
          sudo apt-get install -y wget gnupg lsb-release apt-transport-https
-         # ✅ Add Aqua Security GPG key using modern method
          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
          sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
-         # ✅ Add Trivy repository using signed-by
          echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] \
-         https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | \
+         https://aquasecurity.github.io/trivy-repo/deb jammy main" | \
          sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
          sudo apt-get update -y
          sudo apt-get install -y trivy
          trivy fs --format table -o fs-report.json .
+
 
       - name: Gitleaks
         run: |
