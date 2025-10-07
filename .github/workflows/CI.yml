@@ -26,16 +26,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Trivy (universal method)
+      - name: Install Trivy via APT
         run: |
+         sudo rm -f /etc/apt/sources.list.d/trivy.list
          sudo apt-get update -y
-         sudo apt-get install -y wget tar
-         wget -qO trivy.tar.gz https://github.com/aquasecurity/trivy/releases/latest/download/trivy_$(uname -s | tr '[:upper:]' '[:lower:]')-$(dpkg --print-architecture).tar.gz
-         tar zxvf trivy.tar.gz
-         sudo mv trivy /usr/local/bin/
-         trivy --version
+         sudo apt-get install -y wget gnupg lsb-release apt-transport-https
+         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+         sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+         echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] \
+         https://aquasecurity.github.io/trivy-repo/deb jammy main" | \
+         sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+         sudo apt-get update -y
+         sudo apt-get install -y trivy
          trivy fs --format table -o fs-report.json .
-
 
 
       - name: Gitleaks
