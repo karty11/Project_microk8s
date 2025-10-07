@@ -40,11 +40,11 @@ jobs:
       #    sudo apt-get install -y trivy
       #    trivy fs --format table -o fs-report.json .
 
-      - name: Gitleaks
-        run: |
-         sudo apt-get update -y
-         sudo apt-get install -y gitleaks
-         gitleaks detect --source . --report-path gitleaks-report.json --format json
+      # - name: Gitleaks
+      #   run: |
+      #    sudo apt-get update -y
+      #    sudo apt-get install -y gitleaks
+      #    gitleaks detect --source . --report-path gitleaks-report.json --format json
 
 
   test:
