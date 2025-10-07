@@ -16,8 +16,25 @@ spec:
       containers:
         - name: bankapp
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          envFrom:
-            - secretRef:
-                name: bankapp-db-externalsecret
+          env:
+            - name: MYSQL_HOST
+              value: mysql-service
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: bankapp-db-externalsecret
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bankapp-db-externalsecret
+                  key: password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: bankapp-db-externalsecret
+                  key: database
           ports:
             - containerPort: 8080
