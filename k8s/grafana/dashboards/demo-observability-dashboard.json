@@ -1,0 +1,122 @@
+{
+  "id": null,
+  "uid": "demo-observability",
+  "title": "Data Lake Observability Dashboard",
+  "tags": ["airflow", "trino", "minio", "prometheus"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Airflow DAG Runs (Last 24h)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(airflow_dag_run_duration_seconds_count[24h]))",
+          "legendFormat": "DAG Runs"
+        }
+      ],
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "type": "graph",
+      "title": "Airflow DAG Duration (Seconds)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(airflow_dag_run_duration_seconds_sum[5m]) / rate(airflow_dag_run_duration_seconds_count[5m])",
+          "legendFormat": "Avg Duration (s)"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0}
+    },
+    {
+      "type": "graph",
+      "title": "Trino Query Execution Time",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "avg(rate(trino_execution_time_seconds_sum[5m]))",
+          "legendFormat": "Avg Query Time (s)"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "stat",
+      "title": "Active Trino Queries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(trino_active_queries_total)",
+          "legendFormat": "Active Queries"
+        }
+      ],
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 8}
+    },
+    {
+      "type": "graph",
+      "title": "MinIO Storage Usage (Bytes)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(minio_cluster_capacity_usage_bytes)",
+          "legendFormat": "Used Storage"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "type": "stat",
+      "title": "MinIO Bucket Count",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(minio_bucket_total)",
+          "legendFormat": "Buckets"
+        }
+      ],
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 16}
+    },
+    {
+      "type": "timeseries",
+      "title": "Cluster CPU Usage",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)",
+          "legendFormat": "CPU Usage (%)"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+    },
+    {
+      "type": "timeseries",
+      "title": "Cluster Memory Usage",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "(1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))) * 100",
+          "legendFormat": "Memory Usage (%)"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+    },
+    {
+      "type": "table",
+      "title": "Recent Users (Trino → MinIO)",
+      "datasource": "Trino",
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT id, name, age FROM hive.app_data.users ORDER BY id DESC LIMIT 10"
+        }
+      ],
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 32},
+      "options": {"showHeader": true}
+    }
+  ]
+}
