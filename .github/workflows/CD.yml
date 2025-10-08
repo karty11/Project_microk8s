@@ -195,21 +195,123 @@ jobs:
             done
           done
 
+  # smoke_tests:
+  #   name: Smoke Tests & Final Checks
+  #   runs-on: self-hosted
+  #   needs: apply_argocd_apps
+  #   env:
+  #     KUBE_NAMESPACE: devproject
+  #   steps:
+  #     - name: Get pods
+  #       run: microk8s kubectl get pods -n ${KUBE_NAMESPACE} -o wide || true
+
+  #     - name: Wait for bankapp deployment
+  #       run: microk8s kubectl -n ${KUBE_NAMESPACE} rollout status deployment/bankapp --timeout=120s || true
+
+  #     - name: Wait for mysql deployment
+  #       run: microk8s kubectl -n ${KUBE_NAMESPACE} rollout status deployment/mysql --timeout=120s || true
+
+  #     - name: Show synced secrets
+  #       run: microk8s kubectl get secret bankapp-db-externalsecret -n ${KUBE_NAMESPACE} -o yaml || true
+
+  apply_datalake_apps:
+    name: Deploy Data Lake Components (Airflow, MinIO, Trino, Grafana, Prometheus)
+    runs-on: self-hosted
+    needs: apply_argocd_apps
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure namespaces for data lake
+        run: |
+          for ns in airflow minio trino monitoring; do
+            microk8s kubectl create ns $ns --dry-run=client -o yaml | microk8s kubectl apply -f -
+          done
+
+      - name: Apply Airflow Application
+        run: microk8s kubectl apply -f argocd/airflow-application.yaml -n argocd
+
+      - name: Apply MinIO Application
+        run: microk8s kubectl apply -f argocd/minio-application.yaml -n argocd
+
+      - name: Apply Trino Application
+        run: microk8s kubectl apply -f argocd/trino-application.yaml -n argocd
+
+      - name: Apply Grafana Application
+        run: microk8s kubectl apply -f argocd/grafana-application.yaml -n argocd
+
+      - name: Apply Prometheus Application
+        run: microk8s kubectl apply -f argocd/prometheus-application.yaml -n argocd
+
+      - name: Wait for Prometheus Stack to be Ready
+        run: |
+          microk8s kubectl -n monitoring rollout status deployment prometheus-stack-kube-prometheus-operator --timeout=180s || true
+          microk8s kubectl get pods -n monitoring
+        
+      - name: Apply Grafana Dashboards Application
+        run: microk8s kubectl apply -f argocd/grafana-dashboards-application.yaml -n argocd
+
+      - name: Apply Airflow DAGs Application
+        run: microk8s kubectl apply -f argocd/data-pipeline-dags-application.yaml -n argocd
+
+      - name: Wait for Data Lake Apps to Sync
+        run: |
+          set -e
+          APPS=("airflow" "minio" "trino" "grafana" "prometheus-stack" "grafana-dashboards" "data-pipeline-dags")
+          for app in "${APPS[@]}"; do
+            for i in {1..40}; do
+              SYNC=$(microk8s kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "NotFound")
+              HEALTH=$(microk8s kubectl get application $app -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "NotFound")
+              echo "status: $app sync=$SYNC, health=$HEALTH"
+              if [[ "$SYNC" == "Synced" && "$HEALTH" == "Healthy" ]]; then
+                echo "$app is Synced and Healthy"
+                break
+              fi
+              sleep 10
+              if [ $i -eq 40 ]; then
+                echo "Timeout waiting for $app"
+                microk8s kubectl describe application $app -n argocd || true
+                microk8s kubectl get pods -A || true
+                exit 1
+              fi
+            done
+          done
+     
+      - name: Apply Data Lake ServiceMonitors
+        run: |
+          microk8s kubectl apply -f k8s/monitoring/servicemonitor-airflow.yaml
+          microk8s kubectl apply -f k8s/monitoring/servicemonitor-minio.yaml
+          microk8s kubectl apply -f k8s/monitoring/servicemonitor-trino.yaml
+          
   smoke_tests:
     name: Smoke Tests & Final Checks
     runs-on: self-hosted
-    needs: apply_argocd_apps
+    needs: apply_datalake_apps
     env:
       KUBE_NAMESPACE: devproject
     steps:
-      - name: Get pods
-        run: microk8s kubectl get pods -n ${KUBE_NAMESPACE} -o wide || true
+      - name: Get pods across all namespaces
+        run: microk8s kubectl get pods -A -o wide
 
-      - name: Wait for bankapp deployment
+      - name: Wait for Bankapp deployment
         run: microk8s kubectl -n ${KUBE_NAMESPACE} rollout status deployment/bankapp --timeout=120s || true
 
-      - name: Wait for mysql deployment
-        run: microk8s kubectl -n ${KUBE_NAMESPACE} rollout status deployment/mysql --timeout=120s || true
+      - name: Wait for Airflow Webserver
+        run: microk8s kubectl -n airflow rollout status deployment/airflow-web --timeout=180s || true
 
-      - name: Show synced secrets
-        run: microk8s kubectl get secret bankapp-db-externalsecret -n ${KUBE_NAMESPACE} -o yaml || true
+      - name: Wait for Trino Coordinator
+        run: microk8s kubectl -n trino rollout status deployment/demo-trino-coordinator --timeout=180s || true
+
+      - name: Wait for Grafana
+        run: microk8s kubectl -n monitoring rollout status deployment/demo-grafana --timeout=180s || true
+
+      - name: Check Prometheus Targets
+        run: microk8s kubectl -n monitoring port-forward svc/prometheus-stack-kube-prometheus-prometheus 9090:9090 &
+              sleep 10 && curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
+
+      - name: Final Summary
+        run: |
+          echo "All core + data lake + monitoring components deployed successfully."
+          microk8s kubectl get pods -A
+
+  
