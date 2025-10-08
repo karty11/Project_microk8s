@@ -31,9 +31,9 @@ connections:
   - id: app_mysql
     type: mysql
     host: mysql-service.devproject.svc.cluster.local
-    login: airflow
-    password: airflowpass
-    schema: bankapp
+    login: root
+    password: Test@123
+    schema: bankappdb
     port: 3306
 
 extraPipPackages:
