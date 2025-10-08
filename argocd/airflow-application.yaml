@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://airflow-helm.github.io/charts
+    repoURL: https://airflow.apache.org
     chart: airflow
-    targetRevision: 1.12.0
+    targetRevision: 1.10.0
     helm:
       valueFiles:
         - ../../charts/airflow/values-airflow-demo.yaml
