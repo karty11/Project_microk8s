@@ -1,0 +1,50 @@
+executor: LocalExecutor
+replicaCount: 1
+
+web:
+  enabled: true
+  service:
+    type: ClusterIP
+
+volumes:
+  - name: demo-dags
+    hostPath:
+      path: /home/ubuntu/Project_microk8s/dags
+      type: Directory
+volumeMounts:
+  - name: demo-dags
+    mountPath: /opt/airflow/dags
+
+extraEnv:
+  - name: MINIO_ENDPOINT
+    value: "http://demo-minio.minio.svc.cluster.local:9000"
+  - name: MINIO_BUCKET
+    value: "app-data"
+  - name: MYSQL_CONN_ID
+    value: "app_mysql"
+
+envFrom:
+  - secretRef:
+      name: minio-creds
+
+connections:
+  - id: app_mysql
+    type: mysql
+    host: mysql-service.devproject.svc.cluster.local
+    login: airflow
+    password: airflowpass
+    schema: bankapp
+    port: 3306
+
+extraPipPackages:
+  - apache-airflow-providers-mysql
+  - boto3
+  - pandas
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
