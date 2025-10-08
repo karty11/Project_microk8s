@@ -1,0 +1,19 @@
+mode: standalone
+replicaCount: 1
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+
+auth:
+  rootUser: demoaccess
+  rootPassword: demosecretkey
+
+service:
+  type: ClusterIP
+persistence:
+  enabled: true
+  size: 5Gi
