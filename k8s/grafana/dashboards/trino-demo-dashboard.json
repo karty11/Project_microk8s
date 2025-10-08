@@ -1,0 +1,61 @@
+{
+  "id": null,
+  "title": "Trino Data Lake Dashboard",
+  "tags": ["trino", "airflow", "minio"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "table",
+      "title": "Users Table (from MinIO via Trino)",
+      "datasource": "Trino",
+      "pluginVersion": "9.0.0",
+      "targets": [
+        {
+          "format": "table",
+          "refId": "A",
+          "rawSql": "SELECT id, name, age FROM hive.app_data.users ORDER BY id"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "User Count by Age",
+      "datasource": "Trino",
+      "pluginVersion": "9.0.0",
+      "targets": [
+        {
+          "refId": "B",
+          "format": "time_series",
+          "rawSql": "SELECT age, COUNT(*) as count FROM hive.app_data.users GROUP BY age ORDER BY age"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        }
+      }
+    }
+  ]
+}
