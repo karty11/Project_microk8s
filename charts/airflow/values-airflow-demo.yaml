@@ -1,23 +1,28 @@
-# Disable built-in PostgreSQL (it's failing)
+# ------------------------------------------------------------------------------
+#  AIRFLOW BASE CONFIGURATION
+# ------------------------------------------------------------------------------
+
 postgresql:
   enabled: false
 
-# Keep Redis enabled (Airflow uses it for Celery/triggerer)
 redis:
   enabled: true
 
-# Use MySQL as the Airflow metadata DB
+# External MySQL metadata database
 externalDatabase:
   type: mysql
   host: mysql-service.devproject.svc.cluster.local
   port: 3306
-  user: airflow
-  password: "airflowpass"        # ✅ quotes prevent YAML parser issues
+  user: airflow               # or root, if you enabled root@%
+  password: "airflowpass"     # make sure it matches MySQL user
   database: bankappdb
 
 executor: LocalExecutor
 replicaCount: 1
 
+# ------------------------------------------------------------------------------
+#  WEB + AUTH
+# ------------------------------------------------------------------------------
 web:
   enabled: true
   service:
@@ -27,7 +32,13 @@ web:
     username: admin
     password: admin
 
-# Mount your DAGs
+# Reference existing K8s secrets for Fernet + Webserver
+fernetKeySecretName: airflow-fernet-key
+webserverSecretKeySecretName: airflow-webserver-secret-key
+
+# ------------------------------------------------------------------------------
+#  DAGS  (hostPath for demo, can switch to PVC later)
+# ------------------------------------------------------------------------------
 volumes:
   - name: demo-dags
     hostPath:
@@ -37,6 +48,9 @@ volumeMounts:
   - name: demo-dags
     mountPath: /opt/airflow/dags
 
+# ------------------------------------------------------------------------------
+#  MINIO  (for data lake integration)
+# ------------------------------------------------------------------------------
 extraEnv:
   - name: MINIO_ENDPOINT
     value: "http://demo-minio.minio.svc.cluster.local:9000"
@@ -47,22 +61,31 @@ extraEnv:
 
 envFrom:
   - secretRef:
-      name: minio-creds
+      name: minio-creds  # must exist in airflow namespace
 
 connections:
   - id: app_mysql
     type: mysql
     host: mysql-service.devproject.svc.cluster.local
-    login: root
-    password: "Test@123"       # ✅ same MySQL creds, quoted for safety
+    login: airflow
+    password: "airflowpass"
     schema: bankappdb
     port: 3306
 
+# ------------------------------------------------------------------------------
+#  PYTHON PACKAGES  (for data & ML work)
+# ------------------------------------------------------------------------------
 extraPipPackages:
   - apache-airflow-providers-mysql
+  - apache-airflow-providers-amazon
   - boto3
   - pandas
+  - numpy
+  - scikit-learn
 
+# ------------------------------------------------------------------------------
+#  RESOURCES
+# ------------------------------------------------------------------------------
 resources:
   requests:
     cpu: 100m
@@ -70,3 +93,78 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+
+
+# # Disable built-in PostgreSQL (it's failing)
+# postgresql:
+#   enabled: false
+
+# # Keep Redis enabled (Airflow uses it for Celery/triggerer)
+# redis:
+#   enabled: true
+
+# # Use MySQL as the Airflow metadata DB
+# externalDatabase:
+#   type: mysql
+#   host: mysql-service.devproject.svc.cluster.local
+#   port: 3306
+#   user: airflow
+#   password: "airflowpass"        # ✅ quotes prevent YAML parser issues
+#   database: bankappdb
+
+# executor: LocalExecutor
+# replicaCount: 1
+
+# web:
+#   enabled: true
+#   service:
+#     type: ClusterIP
+#   defaultUser:
+#     enabled: true
+#     username: admin
+#     password: admin
+
+# # Mount your DAGs
+# volumes:
+#   - name: demo-dags
+#     hostPath:
+#       path: /home/ubuntu/Project_microk8s/dags
+#       type: Directory
+# volumeMounts:
+#   - name: demo-dags
+#     mountPath: /opt/airflow/dags
+
+# extraEnv:
+#   - name: MINIO_ENDPOINT
+#     value: "http://demo-minio.minio.svc.cluster.local:9000"
+#   - name: MINIO_BUCKET
+#     value: "app-data"
+#   - name: MYSQL_CONN_ID
+#     value: "app_mysql"
+
+# envFrom:
+#   - secretRef:
+#       name: minio-creds
+
+# connections:
+#   - id: app_mysql
+#     type: mysql
+#     host: mysql-service.devproject.svc.cluster.local
+#     login: root
+#     password: "Test@123"       # ✅ same MySQL creds, quoted for safety
+#     schema: bankappdb
+#     port: 3306
+
+# extraPipPackages:
+#   - apache-airflow-providers-mysql
+#   - boto3
+#   - pandas
+
+# resources:
+#   requests:
+#     cpu: 100m
+#     memory: 256Mi
+#   limits:
+#     cpu: 500m
+#     memory: 512Mi
