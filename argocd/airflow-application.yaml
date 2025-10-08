@@ -30,6 +30,13 @@ spec:
           value: "bankappdb"
         - name: redis.enabled
           value: "true"
+        - name: postgresql.enabled
+          value: "false"
+        - name: airflow.postgresql.enabled
+          value: "false"
+        - name: data.metadataConnection.enabled
+          value: "false"
+          
   destination:
     server: https://kubernetes.default.svc
     namespace: airflow
