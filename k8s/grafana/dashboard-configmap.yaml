@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-trino
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  trino-demo-dashboard.json: |
+    {{ .Files.Get "k8s/grafana/dashboards/trino-demo-dashboard.json" | nindent 4 }}
