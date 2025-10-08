@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: airflow
-  namespace: argocd
+namespace: argocd
 spec:
   project: default
   source:
@@ -13,13 +13,32 @@ spec:
       releaseName: airflow
       valueFiles:
         - values-airflow-demo.yaml
+      parameters:
+        - name: postgresql.enabled
+          value: "false"
+        - name: data.metadataConnection.db
+          value: "mysql"
+        - name: data.metadataConnection.user
+          value: "root"
+        - name: data.metadataConnection.pass
+          value: "Test@123"
+        - name: data.metadataConnection.host
+          value: "mysql-service.devproject.svc.cluster.local"
+        - name: data.metadataConnection.port
+          value: "3306"
+        - name: data.metadataConnection.dbname
+          value: "bankappdb"
+        - name: redis.enabled
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: airflow
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true
+      selfheal: true
+    syncOptions:
+      - CreateNamespace=true 
 
 
 
