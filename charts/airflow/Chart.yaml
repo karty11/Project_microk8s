@@ -1,0 +1,10 @@
+apiVersion: v2
+name: airflow
+version: 0.1.0
+description: Wrapper Helm chart for deploying Apache Airflow with custom values
+type: application
+
+dependencies:
+  - name: airflow
+    version: 1.10.0
+    repository: https://airflow.apache.org
