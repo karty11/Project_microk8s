@@ -58,4 +58,19 @@
       }
     }
   ]
+   "type": "graph",
+  "title": "Trino Query Execution Time",
+  "datasource": "Prometheus",
+  "targets": [
+    {
+      "expr": "trino_execution_time_seconds_sum",
+      "legendFormat": "Trino Execution Time"
+    }
+  ],
+  "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 20
+  }
 }
