@@ -26,5 +26,17 @@ dashboardProviders:
         editable: true
         options:
           path: /var/lib/grafana/dashboards
+          
 dashboardsConfigMaps:
   default: grafana-dashboard-trino
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-stack-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+
+  
