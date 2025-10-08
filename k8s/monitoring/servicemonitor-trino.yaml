@@ -1,1 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: trino-metrics
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+    team: data-lake
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trino
+  namespaceSelector:
+    matchNames:
+      - trino
+  endpoints:
+    - port: http
+      path: /v1/metrics
+      interval: 30s
 
